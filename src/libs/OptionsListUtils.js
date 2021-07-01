@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 /* eslint-disable no-continue */
 import _ from 'underscore';
 import Onyx from 'react-native-onyx';
@@ -10,6 +11,7 @@ import {getReportParticipantsTitle, isDefaultRoom} from './reportUtils';
 import {translate} from './translate';
 import Permissions from './Permissions';
 import md5 from './md5';
+import * as API from './API';
 
 /**
  * OptionsListUtils is used to build a list options passed to the OptionsList component. Several different UI views can
@@ -420,11 +422,45 @@ function getOptions(reports, personalDetails, draftComments, activeReportID, {
         const login = (Str.isValidPhone(searchValue) && !searchValue.includes('+'))
             ? `+${countryCodeByIP}${searchValue}`
             : searchValue;
-        const userInvitePersonalDetails = getPersonalDetailsForLogins([login], personalDetails);
-        userToInvite = createOption(userInvitePersonalDetails, null, draftComments, {
-            showChatPreviewLine,
-        });
-        userToInvite.icons = [defaultAvatarForUserToInvite];
+
+
+        const returnIfValid = () => {
+            const userInvitePersonalDetails = getPersonalDetailsForLogins([login], personalDetails);
+            userToInvite = createOption(userInvitePersonalDetails, null, draftComments, {
+                showChatPreviewLine,
+            });
+            userToInvite.icons = [defaultAvatarForUserToInvite];
+
+            return new Promise((resolve) => {
+                resolve({
+                    personalDetails: personalDetailsOptions,
+                    recentReports: recentReportOptions,
+                    userToInvite,
+                });
+            });
+        };
+        if (Str.isValidPhone(login)) {
+            // eslint-disable-next-line @lwc/lwc/no-async-await
+            return (async function () {
+                const resp = await API.IsValidPhoneNumber({phoneNumber: login});
+                console.log(login, resp.isValid);
+                if (!resp.isValid) {
+                    return {
+                        personalDetails: [],
+                        recentReports: [],
+                        userToInvite: null,
+                    };
+                }
+                return returnIfValid();
+            })();
+
+            // eslint-disable-next-line no-console
+            // console.log(isNotValid);
+            // if (isNotValid) {
+            //     return isNotValid;
+            // }
+        }
+        return returnIfValid();
     }
 
     return {
@@ -603,19 +639,30 @@ function getSidebarOptions(
  * @return {String}
  */
 function getHeaderMessage(hasSelectableOptions, hasUserToInvite, searchValue, maxParticipantsReached = false) {
-    if (maxParticipantsReached) {
-        return translate(preferredLocale, 'messages.maxParticipantsReached');
-    }
+    console.log('getHeaderMessage', searchValue);
+
+    const immediateResolve = payload => new Promise(resolve => resolve(payload));
+
+    // if (maxParticipantsReached) {
+    //     return immediateResolve(translate(preferredLocale, 'messages.maxParticipantsReached'));
+    // }
 
     if (!hasSelectableOptions && !hasUserToInvite) {
-        if (/^\d+$/.test(searchValue)) {
-            return translate(preferredLocale, 'messages.noPhoneNumber');
+        if (Str.isValidPhone(searchValue)) {
+            const login = (Str.isValidPhone(searchValue) && !searchValue.includes('+'))
+                ? `+${countryCodeByIP}${searchValue}`
+                : searchValue;
+            // eslint-disable-next-line @lwc/lwc/no-async-await
+            return API.IsValidPhoneNumber({phoneNumber: login}).then((resp) => {
+                if (!resp.isValid) {
+                    return translate(preferredLocale, 'messages.noPhoneNumber');
+                }
+                return '';
+            });
         }
-
-        return searchValue;
+        return immediateResolve(translate(preferredLocale, 'messages.noEmailOrPhone'));
     }
-
-    return '';
+    return immediateResolve('');
 }
 
 /**

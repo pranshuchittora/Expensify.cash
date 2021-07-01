@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import _ from 'underscore';
 import React, {Component} from 'react';
 import {View} from 'react-native';
@@ -81,9 +82,10 @@ class SearchPage extends Component {
 
         this.state = {
             searchValue: '',
+            userToInvite,
             recentReports,
             personalDetails,
-            userToInvite,
+            headerMessage: '',
         };
     }
 
@@ -103,7 +105,8 @@ class SearchPage extends Component {
     getSections() {
         const sections = [{
             title: this.props.translate('common.recents'),
-            data: this.state.recentReports.concat(this.state.personalDetails),
+            data: this.state.recentReports
+                ? this.state.recentReports.concat(this.state.personalDetails) : this.state.personalDetails,
             shouldShow: true,
             indexOffset: 0,
         }];
@@ -120,21 +123,50 @@ class SearchPage extends Component {
         return sections;
     }
 
+    getHeader() {
+        if (this.state.recentReports && this.state.personalDetails) {
+            getHeaderMessage(
+                (this.state.recentReports.length + this.state.personalDetails.length) !== 0,
+                Boolean(this.state.userToInvite),
+                this.state.searchValue,
+            ).then((header) => {
+                this.setState((prevState) => {
+                    if (prevState.headerMessage !== header) {
+                        return {
+                            headerMessage: header,
+                        };
+                    }
+                });
+            });
+        } else {
+            this.setState((prevState) => {
+                if (prevState.headerMessage !== '') {
+                    return {
+                        headerMessage: '',
+                    };
+                }
+            });
+        }
+    }
+
     updateOptions() {
-        const {
-            recentReports,
-            personalDetails,
-            userToInvite,
-        } = getSearchOptions(
+        getSearchOptions(
             this.props.reports,
             this.props.personalDetails,
             this.state.searchValue,
             this.props.betas,
-        );
-        this.setState({
-            userToInvite,
-            recentReports,
-            personalDetails,
+        ).then((resp) => {
+            const {
+                recentReports,
+                personalDetails,
+                userToInvite,
+            } = resp;
+            console.log(recentReports, personalDetails, userToInvite);
+            this.setState({
+                userToInvite,
+                recentReports,
+                personalDetails,
+            });
         });
     }
 
@@ -162,13 +194,10 @@ class SearchPage extends Component {
         }
     }
 
+
     render() {
         const sections = this.getSections();
-        const headerMessage = getHeaderMessage(
-            (this.state.recentReports.length + this.state.personalDetails.length) !== 0,
-            Boolean(this.state.userToInvite),
-            this.state.searchValue,
-        );
+        this.getHeader();
         return (
             <ScreenWrapper>
                 {({didScreenTransitionEnd}) => (
@@ -185,7 +214,7 @@ class SearchPage extends Component {
                                 value={this.state.searchValue}
                                 onSelectRow={this.selectReport}
                                 onChangeText={this.onChangeText}
-                                headerMessage={headerMessage}
+                                headerMessage={this.state.headerMessage}
                                 hideSectionHeaders
                                 hideAdditionalOptionStates
                                 showTitleTooltip

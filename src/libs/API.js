@@ -996,6 +996,19 @@ function Inbox_CallUser(parameters) {
     return Network.post(commandName, parameters);
 }
 
+/**
+ * Validates PhoneNumber
+ *
+ * @param {Object} parameters
+ * @param {String} parameters.phoneNumber
+ * @returns {Promise}
+ */
+function IsValidPhoneNumber(parameters) {
+    const commandName = 'IsValidPhoneNumber';
+    requireParameters(['phoneNumber'], parameters, commandName);
+    return Network.post(commandName, parameters);
+}
+
 export {
     Authenticate,
     BankAccount_Create,
@@ -1014,6 +1027,7 @@ export {
     GetRequestCountryCode,
     Graphite_Timer,
     Inbox_CallUser,
+    IsValidPhoneNumber,
     Log,
     PayIOU,
     PayWithWallet,
